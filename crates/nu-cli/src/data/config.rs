@@ -103,6 +103,61 @@ pub(crate) fn config(tag: impl Into<Tag>) -> Result<IndexMap<String, Value>, She
     read(tag, &None)
 }
 
+pub(crate) fn filters() -> Result<Filters, ShellError> {
+    let raw_filters_value = match config(Tag::unknown())?.get("filters") {
+        Some(filters) => filters.clone(),
+        _ => return Ok(Filters::new(std::iter::empty())),
+    };
+
+    let filter_rows = match raw_filters_value.value {
+        UntaggedValue::Table(rows) => rows,
+        _ => {
+            return Err(ShellError::untagged_runtime_error(
+                "'filters' config must be a table",
+            ))
+        }
+    };
+
+    let mut filters: Vec<Filter> = vec![];
+    for filter_row in filter_rows.iter() {
+        let dict = match &filter_row.value {
+            UntaggedValue::Row(dict) => dict,
+            _ => {
+                return Err(ShellError::untagged_runtime_error(
+                    "'filters' config table must only have rows",
+                ))
+            }
+        };
+
+        let exact_command = match dict.get_data_by_key("exact_command".spanned_unknown()) {
+            Some(value) => value.convert_to_string(),
+            _ => {
+                return Err(ShellError::untagged_runtime_error(
+                    "'exact_command' must be given for a filter",
+                ))
+            }
+        };
+
+        let output_pipeline = match dict.get_data_by_key("output_pipeline".spanned_unknown()) {
+            Some(value) => match nu_parser::lite_parse(&value.convert_to_string()[..], 0) {
+                Ok(result) => result,
+                Err(parse_error) => return Err(parse_error.into()),
+            },
+            _ => {
+                return Err(ShellError::untagged_runtime_error(
+                    "'output_pipeline' must be given for a filter",
+                ))
+            }
+        };
+
+        filters.push(Filter {
+            matches: MatchScheme::ExactCommand(exact_command),
+            output_pipeline,
+        });
+    }
+    Ok(Filters::new(filters))
+}
+
 pub fn write(config: &IndexMap<String, Value>, at: &Option<PathBuf>) -> Result<(), ShellError> {
     let filename = &mut default_path()?;
     let filename = match at {

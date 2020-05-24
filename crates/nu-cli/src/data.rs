@@ -3,6 +3,7 @@ pub(crate) mod command;
 pub(crate) mod config;
 pub(crate) mod dict;
 pub(crate) mod files;
+pub(crate) mod filter;
 pub mod primitive;
 pub(crate) mod types;
 pub mod value;

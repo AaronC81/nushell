@@ -76,6 +76,7 @@ pub(crate) use crate::commands::Example;
 pub(crate) use crate::context::CommandRegistry;
 pub(crate) use crate::context::Context;
 pub(crate) use crate::data::config;
+pub(crate) use crate::data::filter::{Filter, Filters, MatchScheme};
 pub(crate) use crate::data::value;
 pub(crate) use crate::env::host::handle_unexpected;
 pub(crate) use crate::env::Host;

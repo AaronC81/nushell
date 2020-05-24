@@ -165,7 +165,31 @@ async fn run_with_stdin(
         })
         .collect::<Vec<String>>();
 
-    spawn(&command, &path, &process_args[..], input, is_last, scope)
+    // Find if there is a filter to apply to this
+    let filters = config::filters()?;
+    let filter_commands = filters
+        .find(MatchScheme::ExactCommand(command.name.clone()))
+        .map(|x| nu_parser::classify_block(&x.output_pipeline, context.registry()));
+
+    let external_input_stream = spawn(
+        &command,
+        &path,
+        &process_args[..],
+        input,
+        is_last && filter_commands.is_none(),
+        scope,
+    );
+
+    if let Some(block) = filter_commands {
+        if let Ok(stream) = external_input_stream {
+            crate::commands::classified::block::run_block(&block.block, context, stream, scope)
+                .await
+        } else {
+            external_input_stream
+        }
+    } else {
+        external_input_stream
+    }
 }
 
 fn spawn(
